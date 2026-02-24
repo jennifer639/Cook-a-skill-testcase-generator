@@ -1,13 +1,4 @@
 ---
-name: smartqc-test-case-generator
-description: >
-  Use this skill when a QC/Tester provides a feature spec file (.md) and wants
-  to generate a complete set of test cases plus a ready-to-fill test report template.
-  Triggers: user uploads or pastes a spec → generate test cases. Covers Web App,
-  API Backend, and Mobile App features. Outputs two artifacts: (1) structured test
-  cases and (2) a pre-filled report template.
-author: Jennifer
----
 
 # SmartQC — Test Case Generator Full Pipeline
 
