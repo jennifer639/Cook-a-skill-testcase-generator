@@ -1,0 +1,823 @@
+# SmartQC Test Cases — English Version (For Submission)
+
+<!-- SmartQC Output -->
+<!-- Version: v1.0 -->
+<!-- Generated: 2026-02-24 -->
+<!-- Spec: SPEC: Test Case Generator — Full Pipeline | SmartQC Skill -->
+<!-- TC Count: 28 -->
+
+---
+
+## 📋 Spec Analysis
+
+- **Feature name:** SmartQC — Test Case Generator Full Pipeline
+- **Feature type:** Combined (Claude Project platform; generates test cases for Web/API/Mobile features)
+- **Actors:** QC Engineer, Tester, QA Manager
+- **Main flows:**
+  1. User uploads/pastes a `.md` spec → Skill analyzes spec → Generates test cases → Generates report template
+  2. Skill auto-detects feature type, platforms, actors, business rules
+  3. Skill applies security masking if sensitive data is found in spec
+  4. Skill outputs versioned artifacts with version header
+  5. If generation is incomplete, skill stops cleanly and provides resume instruction
+- **Business rules:**
+  - Output must include both artifacts (test cases + report template) in one run
+  - TC IDs follow `TC-[MODULE]-[NUM]` convention
+  - Priority auto-assigned per defined rules
+  - Sensitive data must be masked before output; warning displayed only if detected
+  - Retry up to 3 attempts on failure; partial output flagged clearly
+  - Version bumps: same spec = patch, updated spec = minor, rewrite = major
+  - Language output matches spec language
+- **Ambiguities:**
+  - No explicit timeout value for "no response" in Claude Project context (Section 8 says 30s but Claude Project does not expose raw API timeout to users)
+  - "Rollback" (Section 9) implies persistent file storage, but Claude Project has no native file versioning
+  - "Stored as separate files pushed to GitHub" (Section 9) — no GitHub integration is described elsewhere
+  - Section 8 retry logic — unclear whether this is handled by the skill prompt or an external orchestration layer
+
+---
+
+## 📗 SECTION 1: Happy Path Cases
+
+### TC-SMARTQC-001: Generate test cases from a valid, well-structured API spec
+
+| Field | Details |
+|---|---|
+| **Priority** | 🔴 Critical |
+| **Type** | Happy Path |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | User has access to Claude Project with SmartQC skill installed; spec file is a valid `.md` file |
+| **Test Data** | `spec_login_api.md` containing: endpoint `POST /api/auth/login`, fields: email + password, success: JWT 24h, fail: 401/423/400 |
+
+**Steps:**
+1. Open Claude Project with SmartQC skill loaded
+2. Upload `spec_login_api.md` into the conversation
+3. Type: "Generate test cases for this spec"
+4. Wait for the full output to be generated
+5. Inspect the output
+
+**Expected Result:**
+- Output begins with version header block (`<!-- SmartQC Output -->`, version, date, TC count)
+- `📋 Spec Analysis` block is present and correctly identifies feature type as API, actors, flows, and business rules
+- Test cases are grouped into labeled sections (Happy Path, Edge Cases, Negative Cases, etc.)
+- Each TC contains: Priority, Type, Platform, Precondition, Test Data, Steps, Expected Result
+- Report template is appended after the last TC, with TC IDs pre-filled
+- Total TC count in version header matches the number of rows in the report template
+
+---
+
+### TC-SMARTQC-002: Generate test cases from a valid Web App spec
+
+| Field | Details |
+|---|---|
+| **Priority** | 🔴 Critical |
+| **Type** | Happy Path |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | SmartQC skill is installed; spec is a Web App feature spec |
+| **Test Data** | `spec_upload_avatar.md` describing: accepted formats JPG/PNG/WEBP, size limit 5MB, crop to 1:1, save to S3 |
+
+**Steps:**
+1. Upload `spec_upload_avatar.md` into the conversation
+2. Type: "Create test cases"
+3. Wait for output
+
+**Expected Result:**
+- Feature type auto-detected as `Web UI`
+- Test cases include Web-specific edge cases: responsive breakpoints, cross-browser behavior, browser back button, copy-paste vs typing
+- At least one TC covers mobile breakpoint rendering
+- No API-specific section is generated (or if generated, it is noted as not applicable)
+- Report template is present with correct TC count
+
+---
+
+### TC-SMARTQC-003: Generate test cases from a valid Mobile App spec
+
+| Field | Details |
+|---|---|
+| **Priority** | 🔴 Critical |
+| **Type** | Happy Path |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | SmartQC skill is installed; spec is a mobile-specific feature spec |
+| **Test Data** | `spec_push_notification.md` describing: iOS & Android push notification delivery, foreground/background behavior, deep link on tap |
+
+**Steps:**
+1. Upload `spec_push_notification.md` into the conversation
+2. Type: "Write test cases for this feature"
+3. Wait for output
+
+**Expected Result:**
+- Feature type auto-detected as `Mobile (iOS & Android)`
+- Test cases include mobile-specific edge cases: screen rotation, background/foreground switch, low memory, 2G/3G network, keyboard obscuring content
+- Cross-platform section (Section 4) is generated with iOS vs Android behavioral differences
+- Report template is present with correct TC count
+
+---
+
+### TC-SMARTQC-004: Skill generates both artifacts in a single run
+
+| Field | Details |
+|---|---|
+| **Priority** | 🔴 Critical |
+| **Type** | Happy Path |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | Any valid `.md` spec is provided |
+| **Test Data** | `spec_login_api.md` (same as TC-SMARTQC-001) |
+
+**Steps:**
+1. Upload `spec_login_api.md` into the conversation
+2. Trigger generation with: "Generate test cases for this spec"
+3. Scroll to the bottom of the output
+
+**Expected Result:**
+- Output contains exactly 2 artifacts: (1) test case document and (2) test report template
+- The report template section begins with `# 📊 TEST REPORT —` followed by the feature name
+- Report template DETAILED RESULTS table contains one row per TC generated
+- No prompt to "ask for the report separately" — both are produced in one response
+
+---
+
+### TC-SMARTQC-005: Skill correctly auto-detects a Combined (Web + API) feature type
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟡 Major |
+| **Type** | Happy Path |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | SmartQC skill is installed |
+| **Test Data** | `spec_combined_feature.md` — a spec that explicitly describes both a Web UI frontend and a REST API backend for the same feature |
+
+**Steps:**
+1. Upload `spec_combined_feature.md` into the conversation
+2. Type: "Generate test cases"
+3. Inspect the Spec Analysis block and the generated sections
+
+**Expected Result:**
+- Spec Analysis block identifies feature type as `Combined (Web UI + API)`
+- Both Web-specific and API-specific test case sections are generated
+- Section 5 (API-Specific Cases) is not skipped
+- Section 4 (Cross-Platform) is present if mobile is also mentioned
+- Report template includes TCs from all applicable sections
+
+---
+
+## 📙 SECTION 2: Edge Cases
+
+### TC-SMARTQC-006: Spec with minimal information (only 3 lines)
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟡 Major |
+| **Type** | Edge Case |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | SmartQC skill is installed |
+| **Test Data** | Pasted text: `## Feature: Delete Account\n- User can delete their account\n- Action is irreversible` |
+
+**Steps:**
+1. Paste the 3-line spec text directly into the conversation
+2. Type: "Generate test cases for this spec"
+3. Wait for output
+
+**Expected Result:**
+- Skill does not refuse or ask for more info before starting
+- At least 1 happy path, 3 edge cases, and 3 negative cases are generated
+- Ambiguities section lists unclear points (e.g., "Does user receive a confirmation email? Is there a grace period before deletion?")
+- Each ambiguity includes a recommended question for PO/Dev
+- Generation completes; report template is included
+
+---
+
+### TC-SMARTQC-007: Spec containing multiple modules
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟡 Major |
+| **Type** | Edge Case |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | SmartQC skill is installed |
+| **Test Data** | `spec_multi_module.md` containing sections: `## Login`, `## Upload Avatar`, `## User Profile` |
+
+**Steps:**
+1. Upload `spec_multi_module.md` into the conversation
+2. Type: "Generate test cases"
+3. Inspect TC IDs in the output
+
+**Expected Result:**
+- TC IDs use different prefixes per module: `TC-AUTH-001`, `TC-UPLOAD-001`, `TC-PROFILE-001`
+- Each module's test cases are in their own labeled group
+- No duplicate TC IDs across modules
+- Report template includes all TCs from all modules, correctly labeled
+
+---
+
+### TC-SMARTQC-008: Spec with a mixed Vietnamese/English language
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟢 Minor |
+| **Type** | Edge Case |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | SmartQC skill is installed |
+| **Test Data** | `spec_mixed.md` — spec with ~60% English headings and content, ~40% Vietnamese descriptions |
+
+**Steps:**
+1. Upload `spec_mixed.md` into the conversation
+2. Type: "Generate test cases"
+3. Review output language
+
+**Expected Result:**
+- Output is generated in English (majority language)
+- No garbled or code-switched sentences mid-TC
+- TC structure and format remain correct
+
+---
+
+### TC-SMARTQC-009: Spec with maximum-length content (very large spec file)
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟡 Major |
+| **Type** | Edge Case |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | SmartQC skill is installed; Claude Project context window is not exceeded |
+| **Test Data** | `spec_large.md` — a 1,500-line spec covering 8 modules with detailed business rules |
+
+**Steps:**
+1. Upload `spec_large.md` into the conversation
+2. Type: "Generate test cases for this spec"
+3. Monitor output for completeness or truncation notice
+
+**Expected Result:**
+- If output completes fully: version header shows correct TC count; report template rows match TC count
+- If output is cut off: skill stops cleanly after the last complete TC; appends `⚠️ GENERATION INCOMPLETE` notice with last TC ID and resume instruction
+- No half-written TC is left in the output
+
+---
+
+### TC-SMARTQC-010: Spec describing a combined Web + API + Mobile feature
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟡 Major |
+| **Type** | Edge Case |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | SmartQC skill is installed |
+| **Test Data** | `spec_checkout_combined.md` — spec describing a checkout flow with Web UI frontend, REST API backend, and iOS/Android mobile app support |
+
+**Steps:**
+1. Upload `spec_checkout_combined.md` into the conversation
+2. Type: "Generate test cases"
+3. Verify all platform sections appear
+
+**Expected Result:**
+- Feature type detected as `Combined`
+- Test cases cover all 6 sections: Happy Path, Edge Cases, Negative Cases, Cross-Platform, API-Specific, Security
+- Cross-platform section includes iOS vs Android vs Web behavioral differences
+- API section covers HTTP methods, status codes, malformed payloads
+- Report template includes all TCs
+
+---
+
+### TC-SMARTQC-011: User provides optional parameters (environment + platform + focus level)
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟢 Minor |
+| **Type** | Edge Case |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | SmartQC skill is installed |
+| **Test Data** | `spec_search.md` + user message: "Generate test cases. Environment: staging. Platform: Web only. Focus: Critical only." |
+
+**Steps:**
+1. Upload `spec_search.md` into the conversation
+2. Type the message including the optional parameters
+3. Review output scope
+
+**Expected Result:**
+- Only Web platform TCs are generated (no API or Mobile cases)
+- Only `🔴 Critical` priority TCs are generated
+- Version header or Spec Analysis notes the applied filters
+- Report template only contains the Critical-level TCs generated
+
+---
+
+## 📕 SECTION 3: Negative Cases
+
+### TC-SMARTQC-012: User triggers skill with no spec provided
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟡 Major |
+| **Type** | Negative |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | SmartQC skill is installed |
+| **Test Data** | User message only: "Generate test cases for this spec" (no file uploaded, no spec pasted) |
+
+**Steps:**
+1. Open a new conversation in Claude Project with SmartQC skill
+2. Type: "Generate test cases for this spec" without attaching any file or pasting any spec content
+3. Observe response
+
+**Expected Result:**
+- Skill does not hallucinate a spec or generate placeholder test cases
+- Response clearly states that no spec was detected and prompts user to upload or paste the spec
+- Response does not ask multiple clarifying questions — just requests the missing spec
+
+---
+
+### TC-SMARTQC-013: User uploads a non-`.md` file (e.g., `.pdf` or `.docx`)
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟡 Major |
+| **Type** | Negative |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | SmartQC skill is installed |
+| **Test Data** | `spec_login.pdf` — a PDF version of the login spec |
+
+**Steps:**
+1. Upload `spec_login.pdf` into the conversation
+2. Type: "Generate test cases for this spec"
+3. Observe response
+
+**Expected Result:**
+- Skill attempts to read the PDF content if the platform allows it
+- If content is extractable: skill proceeds with generation and notes the non-`.md` format in output
+- If content is not extractable: skill informs user it cannot read the file format and requests a `.md` or plain text version
+- Skill does not crash or produce an empty/broken output
+
+---
+
+### TC-SMARTQC-014: User uploads a completely empty `.md` file
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟡 Major |
+| **Type** | Negative |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | SmartQC skill is installed |
+| **Test Data** | `spec_empty.md` — file with 0 bytes / no content |
+
+**Steps:**
+1. Upload `spec_empty.md` into the conversation
+2. Type: "Generate test cases"
+3. Observe response
+
+**Expected Result:**
+- Skill detects that the spec is empty
+- Response notifies user that the spec file is empty and cannot be processed
+- Skill does not generate fabricated test cases
+- No crash or malformed output
+
+---
+
+### TC-SMARTQC-015: User requests rollback to a version that does not exist
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟢 Minor |
+| **Type** | Negative |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | Only v1.0 has been generated in the current session |
+| **Test Data** | User message: "Roll back to v3.0" |
+
+**Steps:**
+1. Generate test cases once (v1.0 is created)
+2. Type: "Roll back to v3.0"
+3. Observe response
+
+**Expected Result:**
+- Skill does not fabricate a v3.0 output
+- Response lists available versions in the current session (e.g., only v1.0)
+- Response informs user that v3.0 does not exist and offers to display v1.0 instead
+
+---
+
+### TC-SMARTQC-016: User requests resume from a TC ID that does not exist
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟢 Minor |
+| **Type** | Negative |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | A prior generation produced TC-AUTH-001 through TC-AUTH-008 |
+| **Test Data** | User message: "Continue from TC-AUTH-099" |
+
+**Steps:**
+1. Complete a generation run (partial or full) with TC-AUTH-001 through TC-AUTH-008
+2. Type: "Continue from TC-AUTH-099"
+3. Observe response
+
+**Expected Result:**
+- Skill does not fabricate TCs preceding TC-AUTH-099
+- Response informs user that TC-AUTH-099 was not found in the prior run
+- Skill offers correct resume point (e.g., "The last completed TC was TC-AUTH-008. Did you mean 'Continue from TC-AUTH-009'?")
+
+---
+
+### TC-SMARTQC-017: Spec is pasted as plain text without any Markdown structure
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟡 Major |
+| **Type** | Negative |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | SmartQC skill is installed |
+| **Test Data** | Pasted plain text: `Login feature. User enters email and password. System returns token if correct. Error if wrong.` |
+
+**Steps:**
+1. Paste the unstructured plain text directly into the conversation
+2. Type: "Generate test cases for this spec"
+3. Observe output
+
+**Expected Result:**
+- Skill processes the plain text and extracts whatever structure it can
+- Spec Analysis block lists detected flows and flags: "Spec has no structured format — coverage may be incomplete"
+- At least 1 happy path, 3 negative cases, and 3 edge cases are generated
+- Ambiguities block is populated with questions about missing details
+- Report template is still generated
+
+---
+
+### TC-SMARTQC-018: User triggers skill with a spec in an unsupported language (e.g., Japanese)
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟢 Minor |
+| **Type** | Negative |
+| **Platform** | All (Claude Project UI) |
+| **Precondition** | SmartQC skill is installed |
+| **Test Data** | `spec_japanese.md` — spec written entirely in Japanese |
+
+**Steps:**
+1. Upload `spec_japanese.md` into the conversation
+2. Type: "Generate test cases"
+3. Observe output language
+
+**Expected Result:**
+- Skill generates test cases in Japanese (Claude's multilingual capability handles this), OR generates in English and notes it defaulted to English
+- Generation does not fail or produce garbled output
+- At minimum, the Spec Analysis block is present and coherent
+
+---
+
+## 📘 SECTION 4: Cross-Platform Cases
+
+### TC-SMARTQC-019: Skill output is consistent across Claude.ai Web UI and Claude Mobile App
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟡 Major |
+| **Type** | Cross-Platform |
+| **Platform** | Web + Mobile |
+| **Precondition** | SmartQC skill is installed in Claude Project accessible from both Web and Mobile |
+| **Test Data** | `spec_login_api.md` — same file used on both platforms |
+
+**Steps:**
+1. On Claude Web UI: upload `spec_login_api.md` and trigger generation
+2. Note the TC count, structure, and version header
+3. On Claude Mobile App: upload the same `spec_login_api.md` and trigger generation
+4. Compare the two outputs
+
+**Expected Result:**
+- Both outputs contain identical version header format
+- TC structure, section labels, and format are identical across platforms
+- TC count may vary slightly due to context window behavior, but not by more than 10%
+- Report template is present in both outputs
+
+---
+
+### TC-SMARTQC-020: Long output rendering on mobile — truncation handling
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟢 Minor |
+| **Type** | Cross-Platform |
+| **Platform** | Mobile (iOS & Android) |
+| **Precondition** | SmartQC skill is installed; user accesses Claude Project via mobile app |
+| **Test Data** | `spec_large.md` — 1,500-line spec generating 30+ TCs |
+
+**Steps:**
+1. Open Claude Project via mobile app
+2. Upload `spec_large.md`
+3. Trigger generation
+4. Scroll through the output to the end
+
+**Expected Result:**
+- Output is scrollable without freezing or crashing the mobile app
+- If generation is incomplete, the `⚠️ GENERATION INCOMPLETE` notice is visible at the end
+- Report template is accessible by scrolling
+- Code blocks (TC format tables) render correctly on mobile screen width
+
+---
+
+## 🔌 SECTION 5: API-Specific Cases
+
+> Note: SmartQC runs on Claude Project (conversational UI). The following TCs apply to Claude's underlying API behavior that affects skill output quality and reliability.
+
+### TC-SMARTQC-021: Skill handles token limit mid-generation gracefully
+
+| Field | Details |
+|---|---|
+| **Priority** | 🔴 Critical |
+| **Type** | Edge Case |
+| **Platform** | API |
+| **Precondition** | Spec is large enough to push generation toward Claude's output token limit |
+| **Test Data** | `spec_large_8modules.md` — spec designed to generate 40+ TCs |
+
+**Steps:**
+1. Feed `spec_large_8modules.md` to the skill
+2. Trigger generation
+3. Allow generation to run until output token limit is approached
+
+**Expected Result:**
+- Skill stops cleanly after the last fully completed TC
+- No TC is left half-written
+- Output ends with: `⚠️ GENERATION INCOMPLETE — Stopped at: TC-[LAST_ID] — To resume: send → "Continue from TC-[NEXT_ID]"`
+- Report template is either generated from completed TCs or explicitly noted as pending
+
+---
+
+### TC-SMARTQC-022: Resume generation from correct TC ID after interruption
+
+| Field | Details |
+|---|---|
+| **Priority** | 🔴 Critical |
+| **Type** | Happy Path |
+| **Platform** | API |
+| **Precondition** | Prior generation was interrupted at TC-SEARCH-005 |
+| **Test Data** | User message: "Continue from TC-SEARCH-005" |
+
+**Steps:**
+1. Confirm prior run ended at TC-SEARCH-005
+2. Send: "Continue from TC-SEARCH-005"
+3. Observe resumed output
+
+**Expected Result:**
+- Generation resumes exactly at TC-SEARCH-006 (the next unwritten TC)
+- TC-SEARCH-001 through TC-SEARCH-005 are NOT re-generated
+- Generation continues through remaining TCs and completes with report template
+- Version header in resumed output notes it is a continuation, not a new version
+
+---
+
+### TC-SMARTQC-023: Retry behavior — skill recovers from a simulated failed generation
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟡 Major |
+| **Type** | Negative |
+| **Platform** | API |
+| **Precondition** | Simulated API timeout or rate limit scenario |
+| **Test Data** | `spec_login_api.md` under constrained API conditions |
+
+**Steps:**
+1. Feed `spec_login_api.md` to the skill under simulated timeout conditions
+2. Observe if skill retries automatically
+3. On third failure, observe fallback behavior
+
+**Expected Result:**
+- Skill retries up to 3 times before falling back
+- Fallback output includes partial TCs generated, flagged with `[⚠️ INCOMPLETE — Generation stopped at TC-XXX. Re-run from this point.]`
+- Report template is still generated from whatever TCs were completed
+- User is notified of how many TCs were successfully generated and how to resume
+
+---
+
+## 🔒 SECTION 6: Security & Validation Cases
+
+### TC-SMARTQC-024: Spec containing a hardcoded API key — skill masks it
+
+| Field | Details |
+|---|---|
+| **Priority** | 🔴 Critical |
+| **Type** | Security |
+| **Platform** | All |
+| **Precondition** | SmartQC skill is installed |
+| **Test Data** | `spec_with_secrets.md` containing line: `Authorization: Bearer sk-prod-abc123xyz789realkey` |
+
+**Steps:**
+1. Upload `spec_with_secrets.md` containing a real-looking API key on line 15
+2. Type: "Generate test cases"
+3. Inspect the output
+
+**Expected Result:**
+- `⚠️ SECURITY NOTICE` block appears at the very top of the output
+- Notice states: "Line 15: API key → replaced with `[API_KEY_PLACEHOLDER]`"
+- No instance of `sk-prod-abc123xyz789realkey` appears anywhere in the output
+- All generated test cases referencing auth use `[API_KEY_PLACEHOLDER]` instead
+
+---
+
+### TC-SMARTQC-025: Spec containing a real email address and phone number — skill masks both
+
+| Field | Details |
+|---|---|
+| **Priority** | 🔴 Critical |
+| **Type** | Security |
+| **Platform** | All |
+| **Precondition** | SmartQC skill is installed |
+| **Test Data** | `spec_with_pii.md` containing: `Test user: john.doe.real@company.com, phone: +84-912-345-678` |
+
+**Steps:**
+1. Upload `spec_with_pii.md` with real email and phone on lines 8 and 9
+2. Type: "Generate test cases"
+3. Inspect the output for PII exposure
+
+**Expected Result:**
+- `⚠️ SECURITY NOTICE` appears at top listing: "Line 8: Email → replaced with `test_user@example.com`; Line 9: Phone → replaced with `+84-900-000-000`"
+- No instance of `john.doe.real@company.com` or `+84-912-345-678` appears in the output
+- All test data fields use the masked placeholders
+
+---
+
+### TC-SMARTQC-026: Spec with no sensitive data — skill produces NO security notice
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟡 Major |
+| **Type** | Security |
+| **Platform** | All |
+| **Precondition** | SmartQC skill is installed |
+| **Test Data** | `spec_clean.md` — a spec using only generic references like "user", "valid credentials", no real data |
+
+**Steps:**
+1. Upload `spec_clean.md` (no real emails, no keys, no PII)
+2. Type: "Generate test cases"
+3. Inspect the top of the output
+
+**Expected Result:**
+- No `⚠️ SECURITY NOTICE` block appears anywhere in the output
+- Skill does not mention security scanning at all
+- Output begins directly with the version header, followed by Spec Analysis
+
+---
+
+### TC-SMARTQC-027: Spec with XSS payload in feature description — skill does not execute it
+
+| Field | Details |
+|---|---|
+| **Priority** | 🔴 Critical |
+| **Type** | Security |
+| **Platform** | All |
+| **Precondition** | SmartQC skill is installed |
+| **Test Data** | `spec_xss.md` containing: `Feature name: <script>alert('xss')</script> Login` |
+
+**Steps:**
+1. Upload `spec_xss.md` with the XSS payload in the feature name
+2. Type: "Generate test cases"
+3. Observe output rendering and TC content
+
+**Expected Result:**
+- The XSS payload is treated as literal text, not executed
+- Spec Analysis block shows feature name as: `<script>alert('xss')</script> Login` (literal string)
+- Skill generates a Security TC covering XSS input validation for the feature being tested
+- No JavaScript is executed in the output
+
+---
+
+### TC-SMARTQC-028: Version bump behavior — same spec re-run produces patch version
+
+| Field | Details |
+|---|---|
+| **Priority** | 🟡 Major |
+| **Type** | Edge Case |
+| **Platform** | All |
+| **Precondition** | `spec_login_api.md` was already generated once (v1.0 exists in session) |
+| **Test Data** | Same `spec_login_api.md` fed again with no changes |
+
+**Steps:**
+1. Confirm v1.0 was generated in the current session from `spec_login_api.md`
+2. Upload the same `spec_login_api.md` again (unchanged)
+3. Type: "Generate test cases"
+4. Check the version header of the new output
+
+**Expected Result:**
+- New output version header shows `v1.0.1` (patch bump)
+- Not `v1.1` (that would indicate a spec update) and not `v2.0`
+- Both v1.0 and v1.0.1 are listed if user asks "show version history"
+
+---
+
+## 🔍 Edge Case Analysis
+
+### Detected Edge Cases
+
+**1. Empty/no spec provided:** The skill must gracefully request the missing input rather than hallucinating test cases.
+
+**2. Oversized spec (1,500+ lines):** Token limits will interrupt generation. The clean-stop + resume mechanism is the key risk area.
+
+**3. Multi-module specs:** Without proper module code separation, TC IDs will collide. The naming convention enforcement is critical.
+
+**4. Mixed-language specs:** Majority language detection must work correctly; outputting in the wrong language makes TCs unusable.
+
+**5. Plain text specs:** Tests whether the analysis step can still extract meaningful flows or degrades gracefully.
+
+**6. Security masking — false positive:** Skill incorrectly flags non-sensitive data (e.g., a placeholder already in the spec), triggering an unnecessary warning.
+
+**7. Security masking — false negative:** A real credential in an unusual format is missed, causing PII leakage.
+
+**8. XSS in spec content:** The rendering layer (Claude Project UI) must not execute any injected scripts.
+
+### Spec Ambiguities — Needs Clarification
+
+| # | Ambiguous Point | Recommended Question for PO/Dev |
+|---|---|---|
+| 1 | Section 9 states files are "pushed to GitHub" but no GitHub integration is described in the deployment section | Is GitHub integration a current capability or a roadmap item? If current, how is it configured? |
+| 2 | Section 8 retry logic (30s timeout, 3 retries) — unclear if handled by the skill prompt or an external orchestration wrapper | Who owns the retry logic: the Claude skill prompt, middleware, or the calling application? |
+| 3 | "Roll back to v1.0" implies persistent storage — Claude Project does not natively version files | Where are prior version outputs stored for rollback? Is rollback only within the same session? |
+| 4 | Section 10 states "Raw input spec content is not stored" — but Claude Project retains conversation history | Does "not stored" refer to external logging systems, or does this conflict with Claude Project's native memory? |
+| 5 | Section 6.3 says "Spec with multiple modules: Skill separates by module" — no explicit threshold defined | Is there a module count threshold? What if the spec has 1 section but covers 2 endpoints? |
+
+### Suggested Test Data
+
+| Data Type | Value | Used in |
+|---|---|---|
+| Valid API spec | `spec_login_api.md` — POST /api/auth/login, JWT 24h, 401/423/400 | TC-SMARTQC-001, TC-SMARTQC-004, TC-SMARTQC-022 |
+| Valid Web spec | `spec_upload_avatar.md` — JPG/PNG/WEBP, 5MB limit, 1:1 crop, S3 | TC-SMARTQC-002 |
+| Valid Mobile spec | `spec_push_notification.md` — iOS & Android, deep link | TC-SMARTQC-003 |
+| Combined spec | `spec_combined_feature.md` — Web UI + REST API backend | TC-SMARTQC-005 |
+| Minimal spec | 3-line plain text: `## Delete Account\n- Irreversible\n- Requires confirmation` | TC-SMARTQC-006 |
+| Multi-module spec | `spec_multi_module.md` — Login + Upload + Profile sections | TC-SMARTQC-007 |
+| Large spec | `spec_large_8modules.md` — 1500+ lines, 8 modules | TC-SMARTQC-009, TC-SMARTQC-021 |
+| Spec with API key | Line containing: `Bearer sk-prod-abc123xyz789realkey` | TC-SMARTQC-024 |
+| Spec with PII | `john.doe.real@company.com`, `+84-912-345-678` | TC-SMARTQC-025 |
+| Spec with XSS | `<script>alert('xss')</script>` in feature name field | TC-SMARTQC-027 |
+| Empty file | `spec_empty.md` — 0 bytes | TC-SMARTQC-014 |
+
+---
+
+# 📊 TEST REPORT — SmartQC Test Case Generator Full Pipeline
+
+**Test Date:** ___________
+**Tester:** ___________
+**Environment:** ☐ Local  ☐ Staging  ☐ Production
+**Build / Version:** ___________
+**Browser / Device:** ___________
+
+---
+
+## SUMMARY
+
+| Metric | Count |
+|---|---|
+| Total Test Cases | 28 |
+| 🟢 Pass | ___ |
+| 🔴 Fail | ___ |
+| ⏭️ Skip | ___ |
+| 🚫 Blocked | ___ |
+| **Pass Rate** | **__%** |
+
+---
+
+## DETAILED RESULTS
+
+| TC ID | Title | Priority | Result | Bug ID | Notes |
+|---|---|---|---|---|---|
+| TC-SMARTQC-001 | Generate test cases from a valid, well-structured API spec | 🔴 Critical | Pass / Fail / Skip | | |
+| TC-SMARTQC-002 | Generate test cases from a valid Web App spec | 🔴 Critical | Pass / Fail / Skip | | |
+| TC-SMARTQC-003 | Generate test cases from a valid Mobile App spec | 🔴 Critical | Pass / Fail / Skip | | |
+| TC-SMARTQC-004 | Skill generates both artifacts in a single run | 🔴 Critical | Pass / Fail / Skip | | |
+| TC-SMARTQC-005 | Skill correctly auto-detects a Combined (Web + API) feature type | 🟡 Major | Pass / Fail / Skip | | |
+| TC-SMARTQC-006 | Spec with minimal information (only 3 lines) | 🟡 Major | Pass / Fail / Skip | | |
+| TC-SMARTQC-007 | Spec containing multiple modules | 🟡 Major | Pass / Fail / Skip | | |
+| TC-SMARTQC-008 | Spec with a mixed Vietnamese/English language | 🟢 Minor | Pass / Fail / Skip | | |
+| TC-SMARTQC-009 | Spec with maximum-length content (very large spec file) | 🟡 Major | Pass / Fail / Skip | | |
+| TC-SMARTQC-010 | Spec describing a combined Web + API + Mobile feature | 🟡 Major | Pass / Fail / Skip | | |
+| TC-SMARTQC-011 | User provides optional parameters (environment + platform + focus level) | 🟢 Minor | Pass / Fail / Skip | | |
+| TC-SMARTQC-012 | User triggers skill with no spec provided | 🟡 Major | Pass / Fail / Skip | | |
+| TC-SMARTQC-013 | User uploads a non-`.md` file (e.g., `.pdf` or `.docx`) | 🟡 Major | Pass / Fail / Skip | | |
+| TC-SMARTQC-014 | User uploads a completely empty `.md` file | 🟡 Major | Pass / Fail / Skip | | |
+| TC-SMARTQC-015 | User requests rollback to a version that does not exist | 🟢 Minor | Pass / Fail / Skip | | |
+| TC-SMARTQC-016 | User requests resume from a TC ID that does not exist | 🟢 Minor | Pass / Fail / Skip | | |
+| TC-SMARTQC-017 | Spec is pasted as plain text without any Markdown structure | 🟡 Major | Pass / Fail / Skip | | |
+| TC-SMARTQC-018 | User triggers skill with a spec in an unsupported language (Japanese) | 🟢 Minor | Pass / Fail / Skip | | |
+| TC-SMARTQC-019 | Skill output is consistent across Claude.ai Web UI and Claude Mobile App | 🟡 Major | Pass / Fail / Skip | | |
+| TC-SMARTQC-020 | Long output rendering on mobile — truncation handling | 🟢 Minor | Pass / Fail / Skip | | |
+| TC-SMARTQC-021 | Skill handles token limit mid-generation gracefully | 🔴 Critical | Pass / Fail / Skip | | |
+| TC-SMARTQC-022 | Resume generation from correct TC ID after interruption | 🔴 Critical | Pass / Fail / Skip | | |
+| TC-SMARTQC-023 | Retry behavior — skill recovers from a simulated failed generation | 🟡 Major | Pass / Fail / Skip | | |
+| TC-SMARTQC-024 | Spec containing a hardcoded API key — skill masks it | 🔴 Critical | Pass / Fail / Skip | | |
+| TC-SMARTQC-025 | Spec containing a real email address and phone number — skill masks both | 🔴 Critical | Pass / Fail / Skip | | |
+| TC-SMARTQC-026 | Spec with no sensitive data — skill produces NO security notice | 🟡 Major | Pass / Fail / Skip | | |
+| TC-SMARTQC-027 | Spec with XSS payload in feature description — skill does not execute it | 🔴 Critical | Pass / Fail / Skip | | |
+| TC-SMARTQC-028 | Version bump behavior — same spec re-run produces patch version | 🟡 Major | Pass / Fail / Skip | | |
+
+---
+
+## BUG SUMMARY
+
+| Bug ID | Related TC | Description | Severity | Status |
+|---|---|---|---|---|
+| BUG-001 | | | ☐ Critical  ☐ Major  ☐ Minor | ☐ Open  ☐ Fixed |
+
+---
+
+## CONCLUSION
+
+**Feature ready for release:** ☐ Yes  ☐ No  ☐ Conditional
+
+**Release conditions (if Conditional):**
+-
+
+**Remaining risks:**
+-
+
+**Sign-off:** ___________________________ Date: ___________
