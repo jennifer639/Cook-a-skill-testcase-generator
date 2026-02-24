@@ -512,4 +512,4 @@ Please review your spec file and avoid including real credentials or PII.
 
 ---
 
-*This spec was created using Claude AI | Version 1.0 | Pending Supervisor approval*
+
