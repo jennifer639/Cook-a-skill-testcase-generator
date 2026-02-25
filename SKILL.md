@@ -1,12 +1,12 @@
 ---
-Name: smartqc-test-case-generator
-Description: >
+name: smartqc-test-case-generator
+description: >
   Use this skill when a QC/Tester provides a feature spec file (.md) and wants
   to generate a complete set of test cases plus a ready-to-fill test report template.
   Triggers: user uploads or pastes a spec → generate test cases. Covers Web App,
   API Backend, and Mobile App features. Outputs two artifacts: (1) structured test
   cases and (2) a pre-filled report template.
-Author: Jennifer
+author: Jennifer
 ---
 
 # SmartQC — Test Case Generator Full Pipeline
@@ -47,7 +47,15 @@ Activate this skill when the user:
 
 ---
 
-## WORKFLOW — EXECUTE ALL 6 STEPS IN ORDER
+## WORKFLOW
+
+This skill runs a **5-step generation pipeline**. Separately, **6 quality gates** run automatically in the background throughout the pipeline — they are not steps, they are always-on checks.
+
+> **5-step pipeline:** Analyze Spec → Apply Test Design Techniques → Generate Test Cases → Platform Deep Coverage → Edge Case Analysis + Report Template
+>
+> **6 quality gates (always-on):** Security Scan · Language Detection · Feature Type Detection · Token Limit Handler · Multi-Module ID Prefix · Version Bump
+
+Execute all 5 steps in order:
 
 ---
 
@@ -230,125 +238,26 @@ Skip any section not applicable. Always explain why:
 
 ### STEP 4: PLATFORM-SPECIFIC DEEP COVERAGE
 
-For every platform detected in the spec, apply the checklist below. Generate dedicated TCs for any item that is relevant and not already covered.
+For every platform detected in the spec, apply the relevant checklist from the references folder. Generate dedicated TCs for any item that is relevant and not already covered.
 
-#### Web App — Full Checklist
-**Layout & Responsiveness**
-- [ ] Desktop (1920×1080, 1440×900, 1280×800)
-- [ ] Tablet (768×1024 portrait, 1024×768 landscape)
-- [ ] Mobile web (375×667, 414×896)
-- [ ] Content overflow / horizontal scroll on small screens
-- [ ] Font scaling when browser zoom is 150% or 200%
+> 📂 **Platform checklists are maintained in separate reference files to keep this skill file lean:**
+> - Web App checklist → `references/web-checklist.md`
+> - API Backend checklist → `references/api-checklist.md`
+> - Mobile App (iOS & Android) checklist → `references/mobile-checklist.md`
 
-**Cross-Browser**
-- [ ] Chrome (latest)
-- [ ] Firefox (latest)
-- [ ] Safari (latest — especially for iOS-specific CSS bugs)
-- [ ] Edge (latest)
-- [ ] Behavior on private/incognito mode (no cached session)
+**Quick reference — key areas to always cover per platform:**
 
-**Navigation & State**
-- [ ] Browser Back button after form submission
-- [ ] Page refresh (F5) during a multi-step flow
-- [ ] Direct URL access (deep link) without going through the normal flow
-- [ ] Open same page in two tabs simultaneously
-- [ ] Session expiry mid-flow — what happens?
+| Platform | Must-cover areas |
+|---|---|
+| **Web** | Responsiveness (desktop/tablet/mobile), cross-browser, form behavior, loading states, session expiry |
+| **API** | Request validation, auth/authz (401/403), HTTP methods, edge payloads, rate limiting, response schema |
+| **Mobile** | Interruptions (call/notification), connectivity loss, OS version range, keyboard behavior, permissions |
 
-**Form Behavior**
-- [ ] Tab order through all fields is logical
-- [ ] Autofill / autocomplete behavior (expected or disabled?)
-- [ ] Copy-paste into fields vs. typing character by character
-- [ ] Submit form with keyboard Enter key (not just mouse click)
-- [ ] Paste text with leading/trailing whitespace
-
-**Loading & Feedback**
-- [ ] Loading spinner shown during async operations
-- [ ] Disabled state on submit button while request is in-flight (prevent double-submit)
-- [ ] Error state shown when API call fails
-- [ ] Empty state shown when list has no data
-- [ ] Skeleton loading vs. blank page on slow network
+Skip any platform not present in the spec. State explicitly why it was skipped.
 
 ---
 
-#### API Backend — Full Checklist
-**Request Validation**
-- [ ] Missing required field → 400 Bad Request + clear error message naming the field
-- [ ] Extra/unknown fields in body → accepted or rejected?
-- [ ] Wrong data type (string instead of integer) → 400
-- [ ] Null value for required field → 400
-- [ ] Empty string for required field → 400
-- [ ] Whitespace-only string → trimmed or rejected?
-
-**Authentication & Authorization**
-- [ ] No token → 401 Unauthorized
-- [ ] Invalid token (random string) → 401
-- [ ] Expired token → 401 with specific message
-- [ ] Valid token but wrong role/permission → 403 Forbidden
-- [ ] Token from a different environment (staging token on prod) → 401
-- [ ] Accessing another user's resource with a valid token → 403
-
-**HTTP Method**
-- [ ] Wrong method (GET instead of POST) → 405 Method Not Allowed
-- [ ] OPTIONS preflight (CORS) → correct headers returned
-
-**Edge Cases**
-- [ ] Empty array `[]` as body where array is expected
-- [ ] Very large payload (near server size limit) → 413 or handled gracefully
-- [ ] Duplicate request (same idempotency key) → handled correctly
-- [ ] Concurrent requests (race condition) → data integrity maintained
-- [ ] Rate limiting → 429 Too Many Requests with `Retry-After` header
-
-**Response Validation**
-- [ ] Response body matches documented schema exactly
-- [ ] Response headers include correct Content-Type
-- [ ] Pagination: first page, last page, beyond last page (empty array, not 404)
-- [ ] Sorting: ascending and descending, with null values
-- [ ] Filtering: multiple filters combined, filter with no results
-
----
-
-#### Mobile App (iOS & Android) — Full Checklist
-**Interruptions**
-- [ ] Incoming phone call during a critical flow (payment, form submission)
-- [ ] Push notification tapped while app is in foreground
-- [ ] Push notification tapped while app is in background → correct deep link?
-- [ ] App killed by OS (low memory) mid-flow → data preserved or lost?
-- [ ] App moved to background, then reopened after 30 min → session still valid?
-
-**Device & OS**
-- [ ] Oldest supported OS version (per spec)
-- [ ] Newest OS version
-- [ ] Small screen (SE-size, ~4.7")
-- [ ] Large screen (Pro Max size, ~6.7")
-- [ ] Tablet form factor (if supported)
-- [ ] Screen rotation: portrait ↔ landscape during active flow
-
-**Connectivity**
-- [ ] No network → graceful error, no crash
-- [ ] Switch from WiFi to 4G mid-request → request completes or retries
-- [ ] Slow network (throttled to 3G) → loading state shown, no timeout crash
-- [ ] Airplane mode → offline state handled correctly
-
-**Keyboard & Input**
-- [ ] Keyboard covers the active input field (scroll adjustment)
-- [ ] Keyboard dismiss on tap outside field
-- [ ] Return/Done key behavior on keyboard
-- [ ] Special keyboard types (numeric, email, phone) shown for correct field types
-
-**Permissions**
-- [ ] Feature requiring camera/gallery permission: first-time request
-- [ ] Permission denied → graceful degradation, not crash
-- [ ] Permission revoked from Settings after previously granted → handled on next use
-
-**Platform Differences (iOS vs Android)**
-- [ ] Date picker UI differs — both produce correct date format
-- [ ] Back navigation: iOS swipe-back gesture vs Android back button
-- [ ] Notification permission flow differs between iOS and Android
-- [ ] File picker behavior differs between platforms
-
----
-
-### STEP 5: EDGE CASE ANALYSIS BLOCK
+### STEP 5: EDGE CASE ANALYSIS + REPORT TEMPLATE
 
 After all test cases, always add this block:
 
@@ -384,7 +293,7 @@ After all test cases, always add this block:
 
 ---
 
-### STEP 6: GENERATE REPORT TEMPLATE
+### STEP 5b: GENERATE REPORT TEMPLATE
 
 Generate a ready-to-fill report. Auto-fill TC IDs and titles from all test cases generated above.
 
