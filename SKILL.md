@@ -49,13 +49,13 @@ Activate this skill when the user:
 
 ## WORKFLOW
 
-This skill runs a **5-step generation pipeline**. Separately, **6 quality gates** run automatically in the background throughout the pipeline — they are not steps, they are always-on checks.
+This skill runs a **6-step generation pipeline**. Separately, **6 quality gates** run automatically in the background throughout the pipeline — they are not steps, they are always-on checks.
 
-> **5-step pipeline:** Analyze Spec → Apply Test Design Techniques → Generate Test Cases → Platform Deep Coverage → Edge Case Analysis + Report Template
+> **6-step pipeline:** Analyze Spec → Apply Test Design Techniques → Generate Test Cases → Platform Deep Coverage → Edge Case Analysis → Generate Report Template
 >
 > **6 quality gates (always-on):** Security Scan · Language Detection · Feature Type Detection · Token Limit Handler · Multi-Module ID Prefix · Version Bump
 
-Execute all 5 steps in order:
+Execute all 6 steps in order:
 
 ---
 
@@ -257,7 +257,7 @@ Skip any platform not present in the spec. State explicitly why it was skipped.
 
 ---
 
-### STEP 5: EDGE CASE ANALYSIS + REPORT TEMPLATE
+### STEP 5: EDGE CASE ANALYSIS
 
 After all test cases, always add this block:
 
@@ -293,7 +293,7 @@ After all test cases, always add this block:
 
 ---
 
-### STEP 5b: GENERATE REPORT TEMPLATE
+### STEP 6: GENERATE REPORT TEMPLATE
 
 Generate a ready-to-fill report. Auto-fill TC IDs and titles from all test cases generated above.
 
