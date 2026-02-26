@@ -436,11 +436,9 @@ Run this before finalizing. Every item must be checked:
 ---
 
 ## LANGUAGE
-
-- Spec in **Vietnamese** → output in Vietnamese
-- Spec in **English** → output in English
-- Spec **mixed** → follow the majority language; use English for all technical terms regardless
-
+- All output is in **English** regardless of the spec language
+- Technical terms are always in English
+- If spec is in another language, translate context to English in the output
 ---
 
 ## EXAMPLES
